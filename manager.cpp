@@ -1,10 +1,5 @@
-#include <iostream>
-#include <cstring>
-#include <filesystem>
-#include <unistd.h>
-#include <sys/inotify.h>
-#include <fcntl.h>
-
+#include "worker.hpp"
+#include <fstream>
 using namespace std;
 
 /* Connects (exec)inotifywait with pipe */
@@ -13,11 +8,21 @@ void listener(const char *path, int *my_pipe);
 /* Returns empty string "" in case invalid input arguments */
 string getPath(const int argc,char *argv[]);
 
-/*Pops a sub string ending with "last char", if not exist returns ""*/
-string popSubString(string &my_string, char lastChar);
-
 int main(int argc, char *argv[]){
 
+    /* Test popUrl CleanUrl */
+    ifstream t("100.txt");
+    string test1((std::istreambuf_iterator<char>(t)),
+                    std::istreambuf_iterator<char>());
+   
+    string name;
+    while((name = popUrl(test1)) != ""){
+        cleanUrl(name);
+        cout << name << endl;
+    }
+
+    return 0;
+   
     int i, nbytes;
 
     /* Get the path to be monitored */
@@ -107,17 +112,4 @@ void listener(const char *path, int *my_pipe){
     perror("internal: exec error");
     exit(1);
 
-}
-
-string popSubString(string& my_string, char lastChar){
-    string result = ""; 
-    size_t pos = my_string.find(lastChar);
-
-    if(pos!= string::npos){
-        result = my_string.substr(0, pos+1);
-        result.pop_back();          //Remove lastchar ('\n')
-        my_string.erase(0,pos+1);
-    }
-
-    return result;
 }
