@@ -18,5 +18,5 @@ std::string popUrl(std::string& my_string);
 
 void cleanUrl(std::string& url);
 
-void worker(int i, std::string fifoname, std::string path);
+void worker(int i, std::string fifoname, std::string, std::string);
 #endif

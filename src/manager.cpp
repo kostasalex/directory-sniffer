@@ -38,13 +38,18 @@ int main(int argc, char *argv[]){
         perror("forkerror\n");
         exit(1);
     }
-
+    cout << "the path is " << path << endl;
     /*Listener process*/
     if(pid == CHILD)     
         listener(path.c_str(), my_pipe);
     
     else{  /* Manager process */                 
         char buffer[1024];
+
+        /*Create directory files to save the results */
+        string writePath = "./files/";
+        mkdir(writePath.c_str(), 0);
+
         string strBuffer, filename;
 
         /* Keep workers info */
@@ -88,7 +93,7 @@ int main(int argc, char *argv[]){
                 /*Create worker */
                 if((pid = fork()) == CHILD){
                     //Worker's(child) code
-                    worker(workerIndex, newName, path);
+                    worker(workerIndex, newName, path, writePath);
                     break;
                 }
 
@@ -119,7 +124,7 @@ int main(int argc, char *argv[]){
     }
 
     //!Need to close all fifo before end
-    return 0;
+    exit(0);
 
 }
 
