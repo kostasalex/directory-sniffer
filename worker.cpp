@@ -1,6 +1,7 @@
 #include "worker.hpp"
 
 using namespace std;
+#define MAXBUFF 1024
 
 string popSubString(string& my_string, char lastChar){
     string result = ""; 
@@ -18,7 +19,6 @@ string popSubString(string& my_string, char lastChar){
 
 string popUrl(string& my_string){
     size_t pos;
-    int i;
     string result = "";
 
     /* Find url and erase previous chars */
@@ -52,4 +52,35 @@ void cleanUrl(string& url){
         url.erase(pos, url.length() - pos);
 
     return;
+}
+
+void worker(int i, string fifoname, string path){
+    int readfd, n;
+    char buff[MAXBUFF];
+    string filename;
+
+
+    if((readfd = open(fifoname.c_str(), O_RDONLY)) < 0)
+    {
+        perror("client: can't open read fifo \n");
+    }
+
+    while(1){
+
+        memset(buff, 0, MAXBUFF); 
+
+        if ((n= read(readfd, buff, MAXBUFF)) <= 0) {
+            perror("server: filename read error ");
+        }
+
+        cout << "Im worker " << i << endl;
+        cout << "my fifo is " << fifoname << endl;
+
+        filename = buff;
+
+        cout << "the file name that you gave me is " << filename << endl;
+    }
+
+    close(readfd);
+
 }
