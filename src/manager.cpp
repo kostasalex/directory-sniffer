@@ -1,6 +1,7 @@
 #include "worker.hpp"
 #include <queue>
 
+
 #define CHILD 0
 
 using namespace std;
@@ -10,6 +11,30 @@ void listener(const char *path, int *my_pipe);
 
 /* Returns empty string "" in case invalid input arguments */
 string getPath(const int argc,char *argv[]);
+
+
+int workersReady, listener_pid;
+vector<int> worker_pid;     //Map index with pid 
+
+
+void handler(int signal)
+{  
+    if(signal == SIGINT){
+
+        cout << "Manager: Killing listener proccess with pid: "<< listener_pid << endl;
+        kill(listener_pid, SIGINT);
+        cout << "Manager: Killing worker processes.." << endl;
+        while(!worker_pid.empty()){
+            kill(worker_pid.back(), SIGCONT);
+            kill(worker_pid.back(), SIGINT);
+            worker_pid.pop_back();
+        }
+        exit(0);
+    }
+    else
+       workersReady++;
+}
+
 
 int main(int argc, char *argv[]){
     int nbytes, pid, n;
@@ -32,52 +57,65 @@ int main(int argc, char *argv[]){
     }
 
     /* Create child process to run listener's code*/
-    pid = fork();
-    if(pid == -1)
-    {
-        perror("forkerror\n");
-        exit(1);
-    }
-    cout << "the path is " << path << endl;
-    /*Listener process*/
-    if(pid == CHILD)     
+    if((pid = fork()) == CHILD)     
         listener(path.c_str(), my_pipe);
     
     else{  /* Manager process */                 
         char buffer[1024];
+        listener_pid = pid;
+        string writePath = "./files/", strBuffer, filename;
 
-        /*Create directory files to save the results */
-        string writePath = "./files/";
-        mkdir(writePath.c_str(), 0);
+        /* Signal handling for user(SIGINT) and workers(SIGCHLD)*/
+        struct sigaction action;
+        workersReady = 0;
 
-        string strBuffer, filename;
+	    memset(&action, 0, sizeof(action));
+        action.sa_handler = handler;
+        action.sa_flags = SA_RESTART;
+        sigaction(SIGCHLD, &action, NULL);
+        sigaction(SIGINT, &action, NULL);
+
 
         /* Keep workers info */
-        int workerIndex = -1, w, writefd;
+        int workerIndex = -1, w, writefd, status;
 
         string fifoName = "./build/fifo", newName;
-        vector<string> worker_fifo;
-        vector<int> worker_pid;
-        
+        vector<string> worker_fifo; //Map index with fifo name 
         queue<int> workers;
     
+
 
         while(1){
 
             memset(buffer, 0, 1024); 
 
             nbytes = read(my_pipe[0], &buffer, 1024); //Reads from listener
-            
+
             /* Append in every loop in case of interupted read from signal */
             strBuffer.append(buffer, nbytes);       
 
             /* filenames ends with '\n' */
             filename = popSubString(strBuffer, '\n');
-
-            cout << endl << filename << endl;
+            cout << "Manager: got file " << filename << " from listener" << endl;
 
             if(filename == "")continue;//Filename not retrieved from listener yet
 
+
+            /* If at least one worker send SIGTSTP, 
+            add all available workers to the queue*/
+            if(workersReady){
+                workersReady = 0;
+                while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED))){
+                    for(int i = 0; i <= workerIndex; i++){
+                        if(worker_pid[i] == pid){
+                            workers.push(i);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            
             /*If no worker exist/available create new*/
             if(workers.empty()){ 
                 w = ++workerIndex;
@@ -90,42 +128,35 @@ int main(int argc, char *argv[]){
                 }
                 worker_fifo.push_back(newName);
 
-                /*Create worker */
+                /*Create new worker */
                 if((pid = fork()) == CHILD){
                     //Worker's(child) code
                     worker(workerIndex, newName, path, writePath);
                     break;
                 }
-
                 worker_pid.push_back(pid);
-                workers.push(workerIndex);
-
-                cout << "Im manager this is my new child: " << pid << endl;
+                cout << "Manager: new worker created with pid: " << pid << endl;
             }
             /* If worker exist get the next available from queue */
             else{
-                w = workers.back();
+                w = workers.front();
                 workers.pop();
-                cout << "Available worker: " << worker_pid[w] << 
-                "with fifo name: " << worker_fifo[w];
+                cout  << "Manager: available worker for the job: " << worker_pid[w] << endl;
+                kill(worker_pid[w], SIGCONT); //"wake" the child
             }
 
             /* Write filename to selected worker */
+
             if((writefd = open(worker_fifo[w].c_str(), O_WRONLY)) < 0)
-                perror("client: can't open write fifo \n");
-            
+                perror("manager: can't open fifo \n");
+
             n = filename.length();
             if (write(writefd, filename.c_str(), n) != n)
-                perror("client: filename write error");
-
+                perror("manager: filename write error");
 
         }
-
     }
-
-    //!Need to close all fifo before end
     exit(0);
-
 }
 
 string getPath(const int argc, char *argv[]){

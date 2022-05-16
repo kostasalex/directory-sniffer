@@ -9,37 +9,43 @@ struct result{
     int counter = 1;
 };
 
+int readfifo;
+string fifo;
+
+/* SIGINT from manager */
+void handlerWorker(int signal)
+{  
+    cout << "Worker with pid: " << getpid() <<  " terminated from manager.. \n";
+    close(readfifo);
+    remove(fifo.c_str());
+    exit(0);
+}
+
+
+/* Add new url the vector, or count it if allready exist */
 void urlCounter(vector<struct result> &urls, string url){
 
     struct result temp;
     bool found = false;
     
     int size = urls.size();
-    cout << "...." << url <<"...." << endl;
+
     for(int i = 0; i < size; i++){
-        cout << "i: " << i << endl;
         if(urls[i].url == url){
-            cout << "same: ";
-            cout << urls[i].url << " - " << url << endl;
             found = true;
             urls[i].counter++;
             break;
         }
-        else{
-            cout << "NOT same: ";
-            cout << urls[i].url << " - " << url << endl;
-        }
     }
 
     if(found == false){
-        cout << "adding new: " << url << endl;
         temp.url = url;
         urls.push_back(temp);
     }
-
     return;
-
 }
+
+
 
 string popSubString(string& my_string, char lastChar){
     string result = ""; 
@@ -54,7 +60,7 @@ string popSubString(string& my_string, char lastChar){
     return result;
 }
 
-
+/*Returns url and erases url + all chars before. If url not exist returns ""*/
 string popUrl(string& my_string){
     size_t pos;
     string result = "";
@@ -69,6 +75,8 @@ string popUrl(string& my_string){
 
     return result;
 }
+
+
 
 void cleanUrl(string& url){
     size_t pos;
@@ -92,42 +100,48 @@ void cleanUrl(string& url){
     return;
 }
 
+
+
 void worker(int i, string fifoname, string readPath, string writePath){
-    int readfd, writefd, nbytes;
+
+    int nbytes, readfd, writefd;
     char buffer[MAXBUFF];
     string filename, path_filename, strBuffer, url, writeUrl;
+
+    fifo = fifoname;
+
+    
+    /* Signal handling from manager (SIGINT)*/
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = handlerWorker;
+    action.sa_flags = SA_RESTART;
+    sigaction(SIGINT, &action, NULL);
 
     vector <struct result> urls;
     struct result temp;
 
     /* Open fifo */
-    if((readfd = open(fifoname.c_str(), O_RDONLY)) < 0)
-    {
+    if((readfifo = open(fifoname.c_str(), O_RDONLY)) < 0)
         perror("worker: can't open read fifo \n");
-    }
+    
 
     while(1){
-
+        cout << i << endl;
         /* Read from fifo */
         memset(buffer, 0, MAXBUFF); 
+ 
+        read(readfifo, buffer, MAXBUFF);
 
-        if ((nbytes= read(readfd, buffer, MAXBUFF)) <= 0) {
-            perror("worker: fifo read error ");
-            exit(0);
-        }
-
-        //*Testing
         /* Open the file to read the urls */
         cout << "Im worker " << i << endl;
-        cout << "my fifo is " << fifoname << endl;
 
         filename = buffer;
         path_filename = readPath + filename;
 
         //*Testing
         cout << "the file name that you gave me is " << filename << endl;
-        cout << "the file name with path " << path_filename << endl;
-
 
         if((readfd = open(path_filename.c_str(), O_RDONLY)) < 0)
         {
@@ -138,9 +152,10 @@ void worker(int i, string fifoname, string readPath, string writePath){
         /* Create new file to save the urls */
         filename = filename + ".out";
         path_filename = writePath + filename;
+      
         if((writefd = open(path_filename.c_str(), O_WRONLY | O_CREAT, 0777)) < 0)
         {
-            perror("worker: can't open read fifo \n");
+            perror("worker: can't open/create file.out \n");
             exit(1);
         }
 
@@ -157,23 +172,21 @@ void worker(int i, string fifoname, string readPath, string writePath){
                 cleanUrl(url);
                 urlCounter(urls, url);
             }
-
-            
         }
+        close(readfd);
 
         while(!urls.empty()){
             temp = urls.back();
-            sleep(1);
             writeUrl = temp.url + " " + to_string(temp.counter) + "\n";
             //*testing
-            //cout << writeUrl << endl;
             write(writefd, writeUrl.c_str(), writeUrl.length());
             urls.pop_back();
         }
-
+        close(writefd);
+        
+        /* Stop and wait signal from manager */
+        raise(SIGTSTP);
     }
-
-    close(readfd);
 
     exit(0);
 
