@@ -43,7 +43,7 @@ int main(int argc, char *argv[]){
     string path;
     path = getPath(argc,argv);
     if(path == ""){      //Error case wrong input
-        cout << "Usage: ./sniffer [-p path]  or ./sniffer  (for current path)" 
+        cout << "Usage: ./sniffer -p path  or ./sniffer  (for current path)" 
         << endl;
         return -1;
     }
@@ -169,10 +169,8 @@ string getPath(const int argc, char *argv[]){
             break;
         case 3: //2nd argument should be "[-p" and 3rd = "path]"
             string arg2 = argv[1];
-            string arg3 = argv[2];
-            if(arg2 == "[-p" && arg3.back() == ']'){
-                arg3.pop_back();
-                path = arg3;
+            if(arg2 == "-p"){
+                path = argv[2];
                 break;
             }
     }
