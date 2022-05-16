@@ -25,20 +25,6 @@ $(EXECUTABLE) : $(OBJECT)
 $(BUILD)/%.o : $(SRC)/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
-
-
-.PHONY: run valgrind clean
-
-
-run: $(EXECUTABLE)
-	@echo "$(GREEN) Executing..$(NC)"
-	$(EXECUTABLE)
-	
-	
-valgrind: $(EXECUTABLE)
-	@echo "$(YELLOW)👓️ Debugging..$(NC)"
-	valgrind ./$(EXECUTABLE)	
-	
 	
 clean: 
 	@echo "$(BLUE)🧹 Cleaning..$(NC)"
