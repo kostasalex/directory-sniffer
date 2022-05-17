@@ -96,7 +96,8 @@ int main(int argc, char *argv[]){
 
             /* filenames ends with '\n' */
             filename = popSubString(strBuffer, '\n');
-            cout << "Manager: got file " << filename << " from listener" << endl;
+            //*Debug
+            //cout << "Manager: got file " << filename << " from listener" << endl;
 
             if(filename == "")continue;//Filename not retrieved from listener yet
 
@@ -135,13 +136,15 @@ int main(int argc, char *argv[]){
                     break;
                 }
                 worker_pid.push_back(pid);
-                cout << "Manager: new worker created with pid: " << pid << endl;
+                //*Debug
+                //cout << "Manager: new worker created with pid: " << pid << endl;
             }
             /* If worker exist get the next available from queue */
             else{
                 w = workers.front();
                 workers.pop();
-                cout  << "Manager: available worker for the job: " << worker_pid[w] << endl;
+                //*Debug
+                //cout  << "Manager: available worker for the job: " << worker_pid[w] << endl;
                 kill(worker_pid[w], SIGCONT); //"wake" the child
             }
 

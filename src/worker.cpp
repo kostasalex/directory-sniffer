@@ -128,20 +128,20 @@ void worker(int i, string fifoname, string readPath, string writePath){
     
 
     while(1){
-        cout << i << endl;
         /* Read from fifo */
         memset(buffer, 0, MAXBUFF); 
  
         read(readfifo, buffer, MAXBUFF);
 
         /* Open the file to read the urls */
-        cout << "Im worker " << i << endl;
+
 
         filename = buffer;
-        path_filename = readPath + filename;
+        path_filename = readPath + "/" + filename;
 
-        //*Testing
-        cout << "the file name that you gave me is " << filename << endl;
+        //*Debug
+        //cout << "Im worker " << i << endl;
+        //cout << "the file name that you gave me is " << filename << endl;
 
         if((readfd = open(path_filename.c_str(), O_RDONLY)) < 0)
         {
@@ -178,7 +178,6 @@ void worker(int i, string fifoname, string readPath, string writePath){
         while(!urls.empty()){
             temp = urls.back();
             writeUrl = temp.url + " " + to_string(temp.counter) + "\n";
-            //*testing
             write(writefd, writeUrl.c_str(), writeUrl.length());
             urls.pop_back();
         }
